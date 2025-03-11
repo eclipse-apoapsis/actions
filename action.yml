@@ -5,6 +5,22 @@ inputs:
     description: 'The version of the ORT Server CLI to install. Defaults to latest if not specified.'
     required: false
     default: latest
+  # Authentication options. If one is set, all are required. If none is provided, osc is set up without authentication.
+  base-url:
+    description: 'The base URL of the ORT Server instance'
+    required: false
+  token-url:
+    description: 'The URL to request a token for the ORT Server instance'
+    required: false
+  client-id:
+    description: 'The client ID to authenticate with the ORT Server instance'
+    required: false
+  username:
+    description: 'The username to authenticate with the ORT Server instance'
+    required: false
+  password:
+    description: 'The password to authenticate with the ORT Server instance'
+    required: false
 runs:
   using: composite
   steps:
@@ -25,3 +41,24 @@ runs:
         curl --location $DOWNLOAD_URL | tar --extract --gzip --directory $BIN_DIR
 
         echo "$BIN_DIR" >> "$GITHUB_PATH"
+
+    - name: Authenticate osc
+      if: ${{ inputs.base-url != '' || inputs.token-url != '' || inputs.client-id != '' || inputs.username != '' || inputs.password != '' }}
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.base-url }}" && -n "${{ inputs.token-url }}" && -n "${{ inputs.client-id }}" && -n "${{ inputs.username }}" && -n "${{ inputs.password }}" ]]; then
+          osc auth login \
+            --base-url="${{ inputs.base-url }}" \
+            --token-url="${{ inputs.token-url }}" \
+            --client-id="${{ inputs.client-id }}" \
+            --username="${{ inputs.username }}" \
+            --password="${{ inputs.password }}"
+        else
+          echo "::warning::Authentication was not performed because not all required authentication parameters were provided. Please provide all of: base-url, token-url, client-id, username, and password."
+        fi
+
+    - name: Authentication Info
+      if: ${{ inputs.base-url == '' && inputs.token-url == '' && inputs.client-id == '' && inputs.username == '' && inputs.password == '' }}
+      shell: bash
+      run: |
+        echo "osc is running without authentication. Either configure configuration in the 'setup-osc' action, or authenticate manually using 'osc auth login'."
