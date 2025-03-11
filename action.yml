@@ -1,0 +1,27 @@
+name: 'Setup ORT Server CLI'
+description: 'Setup the ORT Server CLI (osc) to use in GitHub workflows.'
+inputs:
+  osc-version:
+    description: 'The version of the ORT Server CLI to install. Defaults to latest if not specified.'
+    required: false
+    default: latest
+runs:
+  using: composite
+  steps:
+    - name: Download CLI
+      shell: bash
+      run: |
+        VERSION="${{ inputs.osc-version }}"
+        ARCHIVE_NAME="osc-cli-linux-x64.tar.gz"
+        BIN_DIR="$GITHUB_WORKSPACE/.bin"
+        mkdir -p $BIN_DIR
+
+        if [ "$VERSION" == "latest" ]; then
+          DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/latest/download/$ARCHIVE_NAME"
+        else
+          DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/download/$VERSION/$ARCHIVE_NAME"
+        fi
+
+        curl --location $DOWNLOAD_URL | tar --extract --gzip --directory $BIN_DIR
+
+        echo "$BIN_DIR" >> "$GITHUB_PATH"
