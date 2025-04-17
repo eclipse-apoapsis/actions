@@ -68,4 +68,4 @@ runs:
       if: ${{ inputs.url == '' || inputs.username == '' || inputs.password == '' }}
       shell: bash
       run: |
-        echo "osc is running without authentication. Either configure configuration in the 'setup-osc' action, or authenticate manually using 'osc auth login'."
+        echo "::warning::osc is running without authentication. Either configure authentication in the 'setup-osc' action (url, username and password), or authenticate manually using 'osc auth login'."
