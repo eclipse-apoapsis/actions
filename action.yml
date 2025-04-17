@@ -21,6 +21,8 @@ inputs:
   password:
     description: 'The password to authenticate with the ORT Server instance'
     required: false
+
+# language=bash
 runs:
   using: composite
   steps:
