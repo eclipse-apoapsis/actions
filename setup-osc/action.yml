@@ -27,21 +27,37 @@ runs:
   steps:
     - name: Download OSC
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        OSC_VERSION: ${{ inputs.osc-version }}
       run: |
-        VERSION="${{ inputs.osc-version }}"
-        ARCHIVE_NAME="osc-cli-linux-x64.tar.gz"
-        BIN_DIR="$GITHUB_WORKSPACE/.bin"
-        mkdir -p $BIN_DIR
-
-        if [ "$VERSION" == "latest" ]; then
-          DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/latest/download/$ARCHIVE_NAME"
-        else
-          DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/download/$VERSION/$ARCHIVE_NAME"
+        if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then
+          OSC_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
         fi
 
-        curl --location $DOWNLOAD_URL | tar --extract --gzip --directory $BIN_DIR
+        OSC_HOME=$RUNNER_TOOL_CACHE/osc/$OSC_VERSION
 
-        echo "$BIN_DIR" >> "$GITHUB_PATH"
+        if [ ! -d "$OSC_HOME" ]; then
+          LOWERCASE_OS=$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]')
+          LOWERCASE_ARCH=$(echo $RUNNER_ARCH | tr '[:upper:]' '[:lower:]')
+
+          echo "::notice::Setting up OSC version $OSC_VERSION ($LOWERCASE_OS-$LOWERCASE_ARCH) in '$OSC_HOME'..."
+
+          # https://cli.github.com/manual/gh_release_download
+          gh release download $OSC_VERSION -R eclipse-apoapsis/ort-server -p osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
+
+          mkdir -p "$OSC_HOME"
+
+          if [ "$LOWERCASE_OS" = "windows" ]; then
+            unzip osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip -d "$OSC_HOME"
+          else
+            tar -xzf osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz -C "$OSC_HOME"
+          fi
+
+          echo "$OSC_HOME" >> "$GITHUB_PATH"
+        else
+          echo "::notice::OSC version $OSC_VERSION is already set up in '$OSC_HOME'."
+        fi
 
     - name: Configure Authentication
       if: ${{ inputs.url != '' && inputs.username != '' && inputs.password != '' }}
