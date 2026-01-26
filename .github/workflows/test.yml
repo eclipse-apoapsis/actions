@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  merge_group:
+    types: [ checks_requested ]
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+
+jobs:
+  test-setup-osc:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-26, macos-15-intel, windows-2025]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+    - name: Setup latest OSC (without Authentication)
+      uses: ./setup-osc
+    - name: Get Version
+      shell: bash
+      run: |
+        LATEST_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
+        [ "$(osc --version)" = "osc version $LATEST_VERSION" ]
