@@ -7,18 +7,18 @@ inputs:
     default: latest
   url:
     description: 'The base URL of the ORT Server instance'
-    required: false
+    required: true
+  username:
+    description: 'The username to authenticate with the ORT Server instance'
+    required: true
+  password:
+    description: 'The password to authenticate with the ORT Server instance'
+    required: true
   token-url:
     description: 'The URL to request a token for the ORT Server instance'
     required: false
   client-id:
     description: 'The client ID to authenticate with the ORT Server instance'
-    required: false
-  username:
-    description: 'The username to authenticate with the ORT Server instance'
-    required: false
-  password:
-    description: 'The password to authenticate with the ORT Server instance'
     required: false
 outputs:
   osc-cached:
