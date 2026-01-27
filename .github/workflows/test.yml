@@ -29,3 +29,11 @@ jobs:
       run: |
         LATEST_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
         [ "$(osc --version)" = "osc version $LATEST_VERSION" ]
+    - name: Setup fixed OSC (without Authentication)
+      uses: ./setup-osc
+      with:
+        osc-version: 0.48.0
+    - name: Get Version
+      shell: bash
+      run: |
+        [ "$(osc --version)" = "osc version 0.48.0" ]
