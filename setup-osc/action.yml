@@ -20,12 +20,17 @@ inputs:
   password:
     description: 'The password to authenticate with the ORT Server instance'
     required: false
+outputs:
+  osc-cached:
+    description: 'A boolean flag to indicate whether the OSC tool was already cached'
+    value: ${{ steps.download-osc.outputs.osc-cached }}
 
 # language=bash
 runs:
   using: composite
   steps:
     - name: Download OSC
+      id: download-osc
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -57,8 +62,10 @@ runs:
           rm osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
 
           echo "$OSC_HOME" >> "$GITHUB_PATH"
+          echo "osc-cached=false" >> "$GITHUB_OUTPUT"
         else
           echo "::notice::OSC version $OSC_VERSION is already set up in '$OSC_HOME'."
+          echo "osc-cached=true" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Configure Authentication
