@@ -37,3 +37,12 @@ jobs:
       shell: bash
       run: |
         [ "$(osc --version)" = "osc version 0.48.0" ]
+    - name: Cache fixed OSC (without Authentication)
+      id: cache-osc
+      uses: ./setup-osc
+      with:
+        osc-version: 0.48.0
+    - name: Verify Cache
+      shell: bash
+      run: |
+        [ "${{ steps.cache-osc.outputs.osc-cached }}" = "true" ]
