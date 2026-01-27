@@ -54,6 +54,8 @@ runs:
             tar -xzf osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz -C "$OSC_HOME"
           fi
 
+          rm osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
+
           echo "$OSC_HOME" >> "$GITHUB_PATH"
         else
           echo "::notice::OSC version $OSC_VERSION is already set up in '$OSC_HOME'."
