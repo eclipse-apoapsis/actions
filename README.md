@@ -1,19 +1,21 @@
 # Eclipse Apoapsis GitHub Actions
 
-## Setup ORT Server Client CLI (`osc`)
+## `setup-osc`
 
-The `setup-osc` action provides an easy way to use the [ORT Server Client CLI](https://eclipse-apoapsis.github.io/ort-server/docs/user-guide/cli/getting-started) in a GitHub workflow.
+This action provides an easy way to use the [ORT Server Client (OSC) CLI](https://eclipse-apoapsis.github.io/ort-server/docs/user-guide/cli/getting-started) in a GitHub workflow.
 
-### Configuration
+### Download
 
-- `osc-version`: The version of `osc` to set up, defaults to `latest`.
+- `osc-version`: The version of OSC to set up, defaults to `latest`.
 
-#### Authentication
+#### Configuration
 
-`setup-osc` can also authenticate with the ORT Server instance using the following options:
+The action can be configured to use authentication with the ORT Server instance using the following options:
 
 - `url`: The base URL of the ORT Server instance.
 - `username`: The username to use for authentication.
 - `password`: The password to use for authentication.
 - `token-url`: The URL to request a token for the ORT Server instance (optional).
+               Only required if using a custom Keycloak instance.
 - `client-id`: The client ID to use for authentication (optional).
+               Only required if using a custom Keycloak instance.
