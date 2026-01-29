@@ -27,7 +27,7 @@ jobs:
     - name: Get Version
       shell: bash
       run: |
-        LATEST_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
+        LATEST_VERSION=$(curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | jq -r .tag_name)
         [ "$(osc --version)" = "osc version $LATEST_VERSION" ]
     - name: Setup fixed OSC (without Authentication)
       uses: ./setup-osc
