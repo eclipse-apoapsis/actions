@@ -50,10 +50,10 @@ runs:
           mkdir -p "$OSC_HOME"
 
           if [ "$LOWERCASE_OS" = "windows" ]; then
-            curl -LO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip
+            curl -sLO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip
             unzip osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip -d "$OSC_HOME"
           else
-            curl -LO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz
+            curl -sLO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz
             tar -xzf osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz -C "$OSC_HOME"
           fi
 
