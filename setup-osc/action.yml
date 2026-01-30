@@ -39,6 +39,11 @@ runs:
           OSC_VERSION=$(curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | jq -r .tag_name)
         fi
 
+        if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "null" ]; then
+          echo "::error::Failed to get the latest OSC version."
+          exit 1
+        fi
+
         OSC_HOME=$RUNNER_TOOL_CACHE/osc/$OSC_VERSION
 
         if [ ! -d "$OSC_HOME" ]; then
