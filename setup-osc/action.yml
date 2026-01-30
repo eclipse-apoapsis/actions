@@ -33,7 +33,6 @@ runs:
       id: download-osc
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then

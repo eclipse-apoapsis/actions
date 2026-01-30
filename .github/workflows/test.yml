@@ -17,8 +17,6 @@ jobs:
         os: [ubuntu-24.04, macos-26, macos-15-intel, windows-2025]
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
     - name: Checkout Repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
