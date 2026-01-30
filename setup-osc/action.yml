@@ -36,7 +36,8 @@ runs:
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then
-          OSC_VERSION=$(curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
+          # See https://mywiki.wooledge.org/BashPitfalls#pipefail.
+          OSC_VERSION=$(set +o pipefail ; curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
         fi
 
         OSC_HOME=$RUNNER_TOOL_CACHE/osc/$OSC_VERSION
