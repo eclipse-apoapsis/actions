@@ -35,6 +35,7 @@ runs:
       env:
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
+        curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | grep '"tag_name"'
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then
           OSC_VERSION=$(curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
         fi
