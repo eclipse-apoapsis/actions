@@ -37,7 +37,7 @@ runs:
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then
-          OSC_VERSION=$(curl -s https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest | jq -r .tag_name)
+          OSC_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
         fi
 
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "null" ]; then
@@ -53,13 +53,14 @@ runs:
 
           echo "::notice::Setting up OSC version $OSC_VERSION ($LOWERCASE_OS-$LOWERCASE_ARCH) in '$OSC_HOME'..."
 
+          # https://cli.github.com/manual/gh_release_download
+          gh release download $OSC_VERSION -R eclipse-apoapsis/ort-server -p osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
+
           mkdir -p "$OSC_HOME"
 
           if [ "$LOWERCASE_OS" = "windows" ]; then
-            curl -sLO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip
             unzip osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip -d "$OSC_HOME"
           else
-            curl -sLO https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz
             tar -xzf osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz -C "$OSC_HOME"
           fi
 
