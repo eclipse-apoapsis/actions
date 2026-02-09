@@ -20,6 +20,13 @@ inputs:
   client-id:
     description: 'The client ID to authenticate with the ORT Server instance'
     required: false
+  github-token:
+    description: |
+      The GitHub token to use for accessing releases on github.com. Defaults to the github.token property.
+      On GitHub Enterprise Server (GHES), use a Personal Access Token (PAT) with 'public_repo' scope instead.
+      Can be set to empty string to use unauthenticated access (may hit rate limits).
+    required: false
+    default: ${{ github.token }}
 outputs:
   osc-cached:
     description: 'A boolean flag to indicate whether the OSC tool was already cached'
@@ -33,7 +40,7 @@ runs:
       id: download-osc
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.github-token }}
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then

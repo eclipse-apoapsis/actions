@@ -19,3 +19,4 @@ The action can be configured to use authentication with the ORT Server instance 
                Only required if using a custom Keycloak instance.
 - `client-id`: The client ID to use for authentication (optional).
                Only required if using a custom Keycloak instance.
+- `github-token`: The github.com token to override the usage of `${{ github.token }}` (optional).
