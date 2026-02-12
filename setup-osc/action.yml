@@ -85,6 +85,9 @@ runs:
     - name: Configure Authentication
       if: ${{ inputs.url != '' && inputs.username != '' && inputs.password != '' }}
       shell: bash
+      env:
+        USERNAME: ${{ inputs.username }}
+        PASSWORD: ${{ inputs.password }}
       run: |
         TOKEN_URL_ARG=""
         if [[ -n "${{ inputs.token-url }}" ]]; then
@@ -98,8 +101,8 @@ runs:
 
         osc auth login \
           --url "${{ inputs.url }}" \
-          --username "${{ inputs.username }}" \
-          --password "${{ inputs.password }}" \
+          --username "$USERNAME" \
+          --password "$PASSWORD" \
           $TOKEN_URL_ARG \
           $CLIENT_ID_ARG
 
