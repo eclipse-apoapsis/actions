@@ -46,3 +46,4 @@ jobs:
       shell: bash
       run: |
         [ "${{ steps.cache-osc.outputs.osc-cached }}" = "true" ]
+        [ "$(osc --version)" = "osc version 0.48.0" ]
