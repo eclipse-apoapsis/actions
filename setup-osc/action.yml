@@ -77,6 +77,8 @@ runs:
           echo "osc-cached=false" >> "$GITHUB_OUTPUT"
         else
           echo "::notice::OSC version $OSC_VERSION is already set up in '$OSC_HOME'."
+
+          echo "$OSC_HOME" >> "$GITHUB_PATH"
           echo "osc-cached=true" >> "$GITHUB_OUTPUT"
         fi
 
