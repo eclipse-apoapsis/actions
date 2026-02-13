@@ -43,8 +43,16 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
+        if [ -n "$GH_TOKEN" ]; then
+          AUTH_HEADER="Authorization: token $GH_TOKEN"
+        else
+          AUTH_HEADER=""
+        fi
+
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "latest" ]; then
-          OSC_VERSION=$(gh release view -R eclipse-apoapsis/ort-server --json tagName --jq .tagName)
+          OSC_VERSION=$(curl -s ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
+            https://api.github.com/repos/eclipse-apoapsis/ort-server/releases/latest \
+            | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
         fi
 
         if [ -z "$OSC_VERSION" -o "$OSC_VERSION" = "null" ]; then
@@ -60,18 +68,25 @@ runs:
 
           echo "::notice::Setting up OSC version $OSC_VERSION ($LOWERCASE_OS-$LOWERCASE_ARCH) in '$OSC_HOME'..."
 
-          # https://cli.github.com/manual/gh_release_download
-          gh release download $OSC_VERSION -R eclipse-apoapsis/ort-server -p osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
-
           mkdir -p "$OSC_HOME"
 
           if [ "$LOWERCASE_OS" = "windows" ]; then
-            unzip osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip -d "$OSC_HOME"
+            ASSET_NAME="osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.zip"
           else
-            tar -xzf osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz -C "$OSC_HOME"
+            ASSET_NAME="osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH.tar.gz"
           fi
 
-          rm osc-cli-$LOWERCASE_OS-$LOWERCASE_ARCH*
+          DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/$ASSET_NAME"
+
+          curl -sL ${AUTH_HEADER:+-H "$AUTH_HEADER"} -o "$ASSET_NAME" "$DOWNLOAD_URL"
+
+          if [ "$LOWERCASE_OS" = "windows" ]; then
+            unzip "$ASSET_NAME" -d "$OSC_HOME"
+          else
+            tar -xzf "$ASSET_NAME" -C "$OSC_HOME"
+          fi
+
+          rm "$ASSET_NAME"
 
           echo "$OSC_HOME" >> "$GITHUB_PATH"
           echo "osc-cached=false" >> "$GITHUB_OUTPUT"
