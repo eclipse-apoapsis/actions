@@ -20,13 +20,6 @@ inputs:
   client-id:
     description: 'The client ID to authenticate with the ORT Server instance'
     required: false
-  github-token:
-    description: |
-      The GitHub token to use for accessing releases on github.com. Defaults to the github.token property.
-      On GitHub Enterprise Server (GHES), use a Personal Access Token (PAT) with 'public_repo' scope instead.
-      Can be set to empty string to use unauthenticated access (may hit rate limits).
-    required: false
-    default: ${{ github.token }}
 outputs:
   osc-cached:
     description: 'A boolean flag to indicate whether the OSC tool was already cached'
@@ -40,15 +33,8 @@ runs:
       id: download-osc
       shell: bash
       env:
-        GH_TOKEN: ${{ inputs.github-token }}
         OSC_VERSION: ${{ inputs.osc-version }}
       run: |
-        if [ -n "$GH_TOKEN" ]; then
-          AUTH_HEADER="Authorization: token $GH_TOKEN"
-        else
-          AUTH_HEADER=""
-        fi
-
         if [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "latest" ]]; then
           OSC_VERSION=$(curl -sI https://github.com/eclipse-apoapsis/ort-server/releases/latest \
             | grep -i "location" | sed 's,.*/tag/,,' | tr -d '\r\n')
@@ -82,7 +68,7 @@ runs:
 
           DOWNLOAD_URL="https://github.com/eclipse-apoapsis/ort-server/releases/download/$OSC_VERSION/$ASSET_NAME"
 
-          curl -sL ${AUTH_HEADER:+-H "$AUTH_HEADER"} -o "$ASSET_NAME" "$DOWNLOAD_URL"
+          curl -sL -o "$ASSET_NAME" "$DOWNLOAD_URL"
 
           if [ "$LOWERCASE_OS" = "windows" ]; then
             unzip "$ASSET_NAME" -d "$OSC_HOME"
