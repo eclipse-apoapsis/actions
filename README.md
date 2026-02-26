@@ -6,7 +6,10 @@ This action provides an easy way to use the [ORT Server Client (OSC) CLI](https:
 
 ### Download
 
-- `osc-version`: The version of OSC to set up, defaults to `latest`.
+`osc-version`: The version of OSC to set up. Supported values:
+  - "server" (default): Automatically downloads the OSC version matching the configured ORT Server instance.
+  - "latest": Downloads the latest released version of OSC.
+  - A specific version, e.g. "0.54.0".
 
 #### Configuration
 
