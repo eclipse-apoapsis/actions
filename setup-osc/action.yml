@@ -24,18 +24,111 @@ outputs:
   osc-cached:
     description: 'A boolean flag to indicate whether the OSC tool was already cached'
     value: ${{ steps.download-osc.outputs.osc-cached }}
+  server-version:
+    description: 'The version of the ORT Server instance, if osc-version was set to server'
+    value: ${{ steps.get-server-version.outputs.server-version }}
 
 # language=bash
 runs:
   using: composite
   steps:
+    - name: Get Server Version
+      if: ${{ inputs.osc-version == 'server' }}
+      id: get-server-version
+      shell: bash
+      env:
+        USERNAME: ${{ inputs.username }}
+        PASSWORD: ${{ inputs.password }}
+      run: |
+        # For security reasons, the /versions endpoint requires authentication [1].
+        # Use curl with the provided credentials to authenticate and fetch the server version.
+        # [1]: https://github.com/eclipse-apoapsis/actions/issues/33#issuecomment-3933821972
+        if [[ -z "$USERNAME" || -z "$PASSWORD" || -z "${{ inputs.url }}" ]]; then
+          echo "::error::osc-version=server requires username, password, and url to be configured."
+          exit 1
+        fi
+
+        # Fetch OIDC configuration from server.
+        echo "::notice::Fetching OIDC configuration from server..."
+        OIDC_RESPONSE=$(curl -s "${{ inputs.url }}/api/v1/auth/oidc-config/cli")
+
+        # Extract access token URL and client ID from response.
+        SERVER_TOKEN_URL=$(echo "$OIDC_RESPONSE" | grep -o '"accessTokenUrl":"[^"]*"' | sed 's/"accessTokenUrl":"//' | sed 's/"//')
+        SERVER_CLIENT_ID=$(echo "$OIDC_RESPONSE" | grep -o '"clientId":"[^"]*"' | sed 's/"clientId":"//' | sed 's/"//')
+
+        # Allow user inputs to override server config.
+        TOKEN_URL="${{ inputs.token-url }}"
+        if [[ -z "$TOKEN_URL" ]]; then
+          TOKEN_URL="$SERVER_TOKEN_URL"
+        fi
+
+        CLIENT_ID="${{ inputs.client-id }}"
+        if [[ -z "$CLIENT_ID" ]]; then
+          CLIENT_ID="$SERVER_CLIENT_ID"
+        fi
+
+        if [[ -z "$TOKEN_URL" ]]; then
+          echo "::error::Failed to get access token URL from server OIDC config and no token-url input provided."
+          exit 1
+        fi
+
+        if [[ -z "$CLIENT_ID" ]]; then
+          echo "::error::Failed to get client ID from server OIDC config and no client-id input provided."
+          exit 1
+        fi
+
+        echo "::notice::Using token URL: $TOKEN_URL"
+        echo "::notice::Using client ID: $CLIENT_ID"
+
+        # Authenticate with Keycloak.
+        echo "::notice::Authenticating with Keycloak..."
+        TOKEN_RESPONSE=$(curl -s -X POST "$TOKEN_URL" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=password" \
+          -d "username=$USERNAME" \
+          -d "password=$PASSWORD" \
+          -d "client_id=$CLIENT_ID")
+
+        # Extract access token.
+        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//' | sed 's/"//')
+
+        if [[ -z "$ACCESS_TOKEN" ]]; then
+          echo "::error::Failed to obtain access token."
+          exit 1
+        fi
+
+        # Mask the token from logs.
+        echo "::add-mask::$ACCESS_TOKEN"
+
+        # Get ORT Server version.
+        echo "::notice::Fetching ORT Server version..."
+        VERSION_RESPONSE=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+          "${{ inputs.url }}/api/v1/versions")
+
+        SERVER_VERSION=$(echo "$VERSION_RESPONSE" | grep -o '"ORT Server":"[^"]*"' | sed 's/"ORT Server":"//' | sed 's/"//')
+
+        if [[ -z "$SERVER_VERSION" ]]; then
+          echo "::error::Failed to get ORT Server version from API. Response: $VERSION_RESPONSE"
+          exit 1
+        fi
+
+        echo "::notice::ORT Server version: $SERVER_VERSION"
+        echo "server-version=$SERVER_VERSION" >> "$GITHUB_OUTPUT"
+
     - name: Download OSC
       id: download-osc
       shell: bash
-      env:
-        OSC_VERSION: ${{ inputs.osc-version }}
       run: |
-        if [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "latest" ]]; then
+        OSC_VERSION="${{ inputs.osc-version }}"
+
+        if [[ "$OSC_VERSION" = "server" ]]; then
+          SERVER_VERSION="${{ steps.get-server-version.outputs.server-version }}"
+          if [[ -z "$SERVER_VERSION" ]]; then
+            echo "::error::Server version not set."
+            exit 1
+          fi
+          OSC_VERSION="$SERVER_VERSION"
+        elif [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "latest" ]]; then
           OSC_VERSION=$(curl -sI https://github.com/eclipse-apoapsis/ort-server/releases/latest \
             | grep -i "location" | sed 's,.*/tag/,,' | tr -d '\r\n')
 
@@ -46,7 +139,7 @@ runs:
         fi
 
         if [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "null" ]]; then
-          echo "::error::Failed to get the latest OSC version."
+          echo "::error::Failed to get the OSC version."
           exit 1
         fi
 
