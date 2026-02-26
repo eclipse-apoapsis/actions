@@ -38,7 +38,7 @@ runs:
         if [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "latest" ]]; then
           OSC_VERSION=$(curl -sI https://github.com/eclipse-apoapsis/ort-server/releases/latest \
             | grep -i "location" | sed 's,.*/tag/,,' | tr -d '\r\n')
-        
+
           if [ -z "$OSC_VERSION" ]; then
             echo "::error::Failed to get the latest OSC version."
             exit 1
