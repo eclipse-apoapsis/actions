@@ -127,7 +127,7 @@ runs:
             echo "::error::Server version not set."
             exit 1
           fi
-          OSC_VERSION="${SERVER_VERSION%%-}"
+          OSC_VERSION="${SERVER_VERSION%%-*}"
         elif [[ -z "$OSC_VERSION" || "$OSC_VERSION" = "latest" ]]; then
           OSC_VERSION=$(curl -sI https://github.com/eclipse-apoapsis/ort-server/releases/latest \
             | grep -i "location" | sed 's,.*/tag/,,' | tr -d '\r\n')
