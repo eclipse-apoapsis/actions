@@ -10,10 +10,13 @@ inputs:
     required: true
   username:
     description: 'The username to authenticate with the ORT Server instance'
-    required: true
+    required: false
   password:
     description: 'The password to authenticate with the ORT Server instance'
-    required: true
+    required: false
+  token:
+    description: 'The token to authenticate with the ORT Server instance. Tokens can be generated in the profile section of the ORT Server UI.'
+    required: false
   token-url:
     description: 'The URL to request a token for the ORT Server instance'
     required: false
@@ -32,6 +35,23 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate Inputs
+      shell: bash
+      env:
+        USERNAME: ${{ inputs.username }}
+        PASSWORD: ${{ inputs.password }}
+        TOKEN: ${{ inputs.token }}
+      run: |
+        if [[ -n "$TOKEN" && ( -n "$USERNAME" || -n "$PASSWORD" ) ]]; then
+          echo "::error::The 'token' input is mutually exclusive with 'username' and 'password'. Please provide either a 'token' or 'username' and 'password', but not both."
+          exit 1
+        fi
+
+        if [[ -z "$TOKEN" && ( -n "$USERNAME" || -n "$PASSWORD" ) && ( -z "$USERNAME" || -z "$PASSWORD" ) ]]; then
+          echo "::error::The 'username' and 'password' inputs must be provided together."
+          exit 1
+        fi
+
     - name: Get Server Version
       if: ${{ inputs.osc-version == 'server' }}
       id: get-server-version
@@ -39,22 +59,23 @@ runs:
       env:
         USERNAME: ${{ inputs.username }}
         PASSWORD: ${{ inputs.password }}
+        TOKEN: ${{ inputs.token }}
       run: |
         # For security reasons, the /versions endpoint requires authentication [1].
         # Use curl with the provided credentials to authenticate and fetch the server version.
         # [1]: https://github.com/eclipse-apoapsis/actions/issues/33#issuecomment-3933821972
-        if [[ -z "$USERNAME" || -z "$PASSWORD" || -z "${{ inputs.url }}" ]]; then
-          echo "::error::osc-version=server requires username, password, and url to be configured."
+        if [[ -z "${{ inputs.url }}" ]]; then
+          echo "::error::osc-version=server requires url to be configured."
           exit 1
         fi
 
         # Fetch OIDC configuration from server.
         echo "::notice::Fetching OIDC configuration from server..."
-        OIDC_RESPONSE=$(curl -s "${{ inputs.url }}/api/v1/auth/oidc-config/cli")
+        OIDC_RESPONSE=$(curl -sS "${{ inputs.url }}/api/v1/auth/oidc-config/cli")
 
         # Extract access token URL and client ID from response.
-        SERVER_TOKEN_URL=$(echo "$OIDC_RESPONSE" | grep -o '"accessTokenUrl":"[^"]*"' | sed 's/"accessTokenUrl":"//' | sed 's/"//')
-        SERVER_CLIENT_ID=$(echo "$OIDC_RESPONSE" | grep -o '"clientId":"[^"]*"' | sed 's/"clientId":"//' | sed 's/"//')
+        SERVER_TOKEN_URL=$(echo "$OIDC_RESPONSE" | grep -o '"accessTokenUrl":"[^"]*"' | sed 's/"accessTokenUrl":"//' | sed 's/"//' || true)
+        SERVER_CLIENT_ID=$(echo "$OIDC_RESPONSE" | grep -o '"clientId":"[^"]*"' | sed 's/"clientId":"//' | sed 's/"//' || true)
 
         # Allow user inputs to override server config.
         TOKEN_URL="${{ inputs.token-url }}"
@@ -80,17 +101,33 @@ runs:
         echo "::notice::Using token URL: $TOKEN_URL"
         echo "::notice::Using client ID: $CLIENT_ID"
 
-        # Authenticate with Keycloak.
-        echo "::notice::Authenticating with Keycloak..."
-        TOKEN_RESPONSE=$(curl -s -X POST "$TOKEN_URL" \
-          -H "Content-Type: application/x-www-form-urlencoded" \
-          -d "grant_type=password" \
-          --data-urlencode "username=$USERNAME" \
-          --data-urlencode "password=$PASSWORD" \
-          -d "client_id=$CLIENT_ID")
+        if [[ -n "$TOKEN" ]]; then
+          # Tokens generated in the ORT Server UI are offline (refresh) tokens.
+          # Exchange the token for an access token.
+          echo "::notice::Exchanging the provided token for an access token..."
+          TOKEN_RESPONSE=$(curl -sS -X POST "$TOKEN_URL" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=refresh_token" \
+            --data-urlencode "refresh_token=$TOKEN" \
+            -d "client_id=$CLIENT_ID")
+        else
+          if [[ -z "$USERNAME" || -z "$PASSWORD" ]]; then
+            echo "::error::osc-version=server requires either token or username and password to be configured."
+            exit 1
+          fi
 
-        # Extract access token.
-        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//' | sed 's/"//')
+          # Authenticate with Keycloak.
+          echo "::notice::Authenticating with Keycloak..."
+          TOKEN_RESPONSE=$(curl -sS -X POST "$TOKEN_URL" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=password" \
+            --data-urlencode "username=$USERNAME" \
+            --data-urlencode "password=$PASSWORD" \
+            -d "client_id=$CLIENT_ID")
+        fi
+
+        # Extract access token ('|| true' prevents a silent exit due to 'pipefail' when no match is found).
+        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//' | sed 's/"//' || true)
 
         if [[ -z "$ACCESS_TOKEN" ]]; then
           echo "::error::Failed to obtain access token."
@@ -100,15 +137,23 @@ runs:
         # Mask the token from logs.
         echo "::add-mask::$ACCESS_TOKEN"
 
-        # Get ORT Server version.
+        # Get ORT Server version, capturing the HTTP status code for better error reporting.
         echo "::notice::Fetching ORT Server version..."
-        VERSION_RESPONSE=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+        VERSION_RESPONSE=$(curl -sS -w $'\n%{http_code}' -H "Authorization: Bearer $ACCESS_TOKEN" \
           "${{ inputs.url }}/api/v1/versions")
 
-        SERVER_VERSION=$(echo "$VERSION_RESPONSE" | grep -o '"ORT Server":"[^"]*"' | sed 's/"ORT Server":"//' | sed 's/"//')
+        HTTP_STATUS=$(echo "$VERSION_RESPONSE" | tail -n 1)
+        VERSION_BODY=$(echo "$VERSION_RESPONSE" | sed '$d')
+
+        if [[ "$HTTP_STATUS" != 2* ]]; then
+          echo "::error::Failed to get ORT Server version from API (HTTP status $HTTP_STATUS). Response: $VERSION_BODY"
+          exit 1
+        fi
+
+        SERVER_VERSION=$(echo "$VERSION_BODY" | grep -o '"ORT Server":"[^"]*"' | sed 's/"ORT Server":"//' | sed 's/"//' || true)
 
         if [[ -z "$SERVER_VERSION" ]]; then
-          echo "::error::Failed to get ORT Server version from API. Response: $VERSION_RESPONSE"
+          echo "::error::Failed to parse ORT Server version from API response: $VERSION_BODY"
           exit 1
         fi
 
@@ -181,11 +226,12 @@ runs:
         fi
 
     - name: Configure Authentication
-      if: ${{ inputs.url != '' && inputs.username != '' && inputs.password != '' }}
+      if: ${{ inputs.url != '' && (inputs.token != '' || (inputs.username != '' && inputs.password != '')) }}
       shell: bash
       env:
         USERNAME: ${{ inputs.username }}
         PASSWORD: ${{ inputs.password }}
+        TOKEN: ${{ inputs.token }}
       run: |
         TOKEN_URL_ARG=""
         if [[ -n "${{ inputs.token-url }}" ]]; then
@@ -197,15 +243,23 @@ runs:
           CLIENT_ID_ARG="--client-id ${{ inputs.client-id }}"
         fi
 
-        osc auth login \
-          --url "${{ inputs.url }}" \
-          --username "$USERNAME" \
-          --password "$PASSWORD" \
-          $TOKEN_URL_ARG \
-          $CLIENT_ID_ARG
+        if [[ -n "$TOKEN" ]]; then
+          osc auth login \
+            --url "${{ inputs.url }}" \
+            --token "$TOKEN" \
+            $TOKEN_URL_ARG \
+            $CLIENT_ID_ARG
+        else
+          osc auth login \
+            --url "${{ inputs.url }}" \
+            --username "$USERNAME" \
+            --password "$PASSWORD" \
+            $TOKEN_URL_ARG \
+            $CLIENT_ID_ARG
+        fi
 
     - name: Authentication Info
-      if: ${{ inputs.url == '' || inputs.username == '' || inputs.password == '' }}
+      if: ${{ inputs.url == '' || (inputs.token == '' && (inputs.username == '' || inputs.password == '')) }}
       shell: bash
       run: |
-        echo "::warning::OSC is running without authentication. Either configure authentication in the 'setup-osc' action (url, username and password), or authenticate manually using 'osc auth login'."
+        echo "::warning::OSC is running without authentication. Either configure authentication in the 'setup-osc' action (url and token, or url, username and password), or authenticate manually using 'osc auth login'."
