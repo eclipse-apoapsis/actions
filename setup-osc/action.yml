@@ -150,7 +150,7 @@ runs:
           exit 1
         fi
 
-        SERVER_VERSION=$(echo "$VERSION_BODY" | grep -o '"ORT Server":"[^"]*"' | sed 's/"ORT Server":"//' | sed 's/"//' || true)
+        SERVER_VERSION=$(echo "$VERSION_BODY" | sed -nE 's/.*"ORT Server"[[:space:]]*:[[:space:]]*"([0-9A-Za-z.+-]+)".*/\1/p')
 
         if [[ -z "$SERVER_VERSION" ]]; then
           echo "::error::Failed to parse ORT Server version from API response: $VERSION_BODY"
